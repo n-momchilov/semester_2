@@ -1,0 +1,73 @@
+#include <Adafruit_NeoPixel.h>
+
+#define PIN_LED_STRIP 7  // The pin where the data line for the LED strip is connected
+#define NUMPIXELS 10     // Number of LEDs in the strip
+#define TRIG_PIN 13      // Ultrasonic sensor trigger pin
+#define ECHO_PIN 12      // Ultrasonic sensor echo pin
+#define MAX_DISTANCE 100 // Maximum distance for active movement detection (in cm)
+#define IDLE_TIME 5000   // Time in milliseconds to wait before starting the heartbeat effect
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN_LED_STRIP, NEO_GRB + NEO_KHZ800);
+
+unsigned long lastMovementTime = 0; // Tracks the last time movement was detected
+
+void setup() {
+  strip.begin();
+  strip.show();
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  long duration, distance;
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  duration = pulseIn(ECHO_PIN, HIGH);
+  distance = duration * 0.034 / 2;
+
+  if (distance <= MAX_DISTANCE && distance > 0) {
+    lastMovementTime = millis(); // Update the last movement time
+    float t = (float)(millis() % 10000) / 10000; // Smoothly cycle through colors over 10 seconds
+    displaySmoothTransition(t);
+  } else if (millis() - lastMovementTime > IDLE_TIME) {
+    heartbeatEffect();
+  }
+
+  delay(100);
+}
+
+void displaySmoothTransition(float t) {
+  // Calculate RGB values based on a smooth gradient transition
+  uint8_t red = (sin(t * 2 * PI) + 1) * 127.5;
+  uint8_t green = (sin(t * 2 * PI + 2 * PI / 3) + 1) * 127.5;
+  uint8_t blue = (sin(t * 2 * PI + 4 * PI / 3) + 1) * 127.5;
+  
+  colorWipe(strip.Color(red, green, blue), 10);
+}
+
+void colorWipe(uint32_t color, int wait) {
+  for (int i = 0; i < strip.numPixels(); i++) {
+    strip.setPixelColor(i, color);
+    strip.show();
+    delay(wait);
+  }
+}
+
+void heartbeatEffect() {
+  // Simulate a heartbeat with fading red
+  for (int i = 0; i < 255; i += 15) {
+    strip.fill(strip.Color(i, 0, 0), 0, strip.numPixels());
+    strip.show();
+    delay(20);
+  }
+  for (int i = 255; i > 0; i -= 15) {
+    strip.fill(strip.Color(i, 0, 0), 0, strip.numPixels());
+    strip.show();
+    delay(20);
+  }
+  delay(1000); // Pause to simulate heart 'resting'
+}
